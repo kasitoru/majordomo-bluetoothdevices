@@ -1,0 +1,168 @@
+<!-- Bluetooth Devices module for MajorDoMo -->
+<!-- Author: Sergey Avdeev <thesoultaker48@gmail.com> -->
+<!-- URL: https://github.com/thesoultaker48/majordomo-bluetoothdevices -->
+
+[#if VIEW_MODE=""#]
+	<div>
+		<a class="btn btn-default" href="?view_mode=add_bluetoothdevices"><i class="glyphicon glyphicon-plus"></i> Добавить</a>
+		<a class="btn btn-default" href="?view_mode=settings_bluetoothdevices"><i class="glyphicon glyphicon-wrench"></i> Настройки</a>
+		[#if CYCLERUN==1#]
+			<span class="label label-success" style="margin-left: 5px;" title="Статус цикла">Цикл запущен</span>
+		[#else#]
+			<span class="label label-danger" style="margin-left: 5px;" title="Статус цикла">Цикл остановлен</span>
+		[#endif#]
+	</div>
+	<br>
+	[#if DEVICES#]
+	<table align="center" class="table table-striped">
+		<tr>
+			<td><b>Объект</b></td>
+			<td>&nbsp;</td>
+			<td><b>Описание</b></td>
+			<td><b>Адрес устройства</b></td>
+			<td><b>Последняя активность</b></td>
+			<td><b>Пользователь</b></td>
+			<td>&nbsp;</td>
+		</tr>
+		[#begin DEVICES#]
+		<tr>
+			<td style="vertical-align:middle">[#OBJECT#]</td>
+			<td style="vertical-align:middle">
+			[#if ONLINE==1#]
+				<span class="label label-success" title="Online">Online</span>
+			[#else#]
+				<span class="label label-warning" title="Offline">Offline</span>
+			[#endif#]
+			</td> 
+			<td style="vertical-align:middle">[#DESCRIPTION#]</td>
+			<td style="vertical-align:middle">[#ADDRESS#]</td>
+			<td style="vertical-align:middle">[#TIMESTAMP#]</td>
+			<td style="vertical-align:middle">[#USER#]</td>
+			<td style="vertical-align:middle">
+				<a href="?view_mode=edit_bluetoothdevices&id=[#ID#]" class="btn btn-default" title="Изменить"><i class="glyphicon glyphicon-pencil"></i></a>
+				<a href="?view_mode=delete_bluetoothdevices&id=[#ID#]" onClick="return confirm('Вы действительно хотите удалить выбранное Bluetooth устройство?')" class="btn btn-default" title="Удалить"><i class="glyphicon glyphicon-remove"></i></a> 
+			</td>
+		</tr>
+		[#end DEVICES#]
+	</table>
+	[#else DEVICES#]
+		<p>Список устройств пуст</p>
+	[#endif DEVICES#]
+[#endif VIEW_MODE#]
+
+[#if VIEW_MODE="add_bluetoothdevices"#]
+	[#if ERROR_TEXT#]<div class="alert alert-error">[#ERROR_TEXT#]</div>[#endif#]
+	<form action="?" method="post" class="form-horizontal">
+		<fieldset>
+			<div class="form-group">
+				<label class="col-lg-3 control-label"[#if ERROR_TEXT#] style="color:red;font-weight:bold"[#endif#]>Адрес устройства: (*)</label>
+				<div class="col-lg-8"><input type="text" class="form-control" name="address" value="[#ADDRESS#]" id="address"></div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">Описание:</label>
+				<div class="col-lg-8"><input type="text" class="form-control" name="description" value="[#DESCRIPTION#]" id="description"></div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label"><#LANG_USER#>:</label>
+				<div class="col-lg-8">
+					<select name="user" class="form-control">
+						<option value="0">n/a
+						[#begin USERS#]
+						<option value="[#ID#]"[#if ID="<#USER#>"#] selected[#endif SELECTED#]>[#NAME#]
+						[#end USERS#]
+					</select>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">&nbsp;</label>
+				<div class="col-lg-3">
+					<button type="submit" name="submit" value="Submit" class="btn btn-primary"><#LANG_ADD#></button>
+					<a href="?" class="btn btn-default "><#LANG_CANCEL#></a>
+					<input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
+					<input type="hidden" name="edit_mode" value="add">
+				</div>
+			</div>
+		</fieldset>
+	</form>
+[#endif VIEW_MODE#]
+
+[#if VIEW_MODE="edit_bluetoothdevices"#]
+	[#if ERROR_TEXT#]<div class="alert alert-error">[#ERROR_TEXT#]</div>[#endif#]
+	<form action="?" method="post" class="form-horizontal">
+		<fieldset>
+			<div class="form-group">
+				<label class="col-lg-3 control-label"[#if ERROR_TEXT#] style="color:red;font-weight:bold"[#endif#]>Адрес устройства: (*)</label>
+				<div class="col-lg-8"><input type="text" class="form-control" name="address" value="[#ADDRESS#]" id="address"></div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">Описание:</label>
+				<div class="col-lg-8"><input type="text" class="form-control" name="description" value="[#DESCRIPTION#]" id="description"></div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label"><#LANG_USER#>:</label>
+				<div class="col-lg-8">
+					<select name="user" class="form-control">
+						<option value="0">n/a
+						[#begin USERS#]
+						<option value="[#ID#]"[#if ID="<#USER#>"#] selected[#endif SELECTED#]>[#NAME#]
+						[#end USERS#]
+					</select>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">&nbsp;</label>
+				<div class="col-lg-3">
+					<button type="submit" name="submit" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+					<a href="?" class="btn btn-default "><#LANG_CANCEL#></a>
+					<input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
+					<input type="hidden" name="edit_mode" value="edit">
+					<input type="hidden" name="id" value="<#ID#>">
+				</div>
+			</div>
+		</fieldset>
+	</form>
+[#endif VIEW_MODE#]
+
+[#if VIEW_MODE="settings_bluetoothdevices"#]
+	<form action="?" method="post" class="form-horizontal">
+		<fieldset>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">Метод поиска устройств:</label>
+				<div class="col-lg-8">
+					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запросы (только для Linux)</label>
+					<label class="radio"><input type="radio" name="scanMethod" value="discovery" [#if SCAN_METHOD="discovery"#] checked[#endif#]>Сканирование радиоэфира</label>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">Интервал сканирования:</label>
+				<div class="col-lg-8">
+					<input type="text" class="form-control" name="scanInterval" value="[#SCAN_INTERVAL#]" id="scanInterval">
+					<p class="help-block">Временная задержка в секундах между процедурами поиска устройств.</p>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">Таймаут доступности:</label>
+				<div class="col-lg-8">
+					<input type="text" class="form-control" name="scanTimeout" value="[#SCAN_TIMEOUT#]" id="scanTimeout">
+					<p class="help-block">Время в секундах, если спустя которое устройство не отвечает, связь с ним будет считаться потерянной.</p>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">Интервал перезагрузки:</label>
+				<div class="col-lg-8">
+					<input type="text" class="form-control" name="resetInterval" value="[#RESET_INTERVAL#]" id="resetInterval">
+					<p class="help-block">Время в секундах, по прошествию которого будет производится перезагрузка Bluetooth модуля (только для Linux систем).</p>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="col-lg-3 control-label">&nbsp;</label>
+				<div class="col-lg-3">
+					<button type="submit" name="submit" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+					<a href="?" class="btn btn-default "><#LANG_CANCEL#></a>
+					<input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
+					<input type="hidden" name="edit_mode" value="save">
+				</div>
+			</div>
+		</fieldset>
+	</form>
+[#endif VIEW_MODE#]
