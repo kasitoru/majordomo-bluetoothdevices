@@ -365,10 +365,12 @@ class bluetoothdevices extends module {
 					}
 				} else {
 					$lastTimestamp = intval($obj->getProperty('lastTimestamp'));
-					if(time()-$lastTimestamp > intval($this->config['scanTimeout'])) {
-						echo date('Y/m/d H:i:s').' Device lost: '.$address.PHP_EOL;
-						$obj->setProperty('online', 0);
-						$obj->callMethod('Lost', array('ADDRESS'=>$address));
+					if($obj->getProperty('online') == 1) {
+						if(time()-$lastTimestamp > intval($this->config['scanTimeout'])) {
+							echo date('Y/m/d H:i:s').' Device lost: '.$address.PHP_EOL;
+							$obj->setProperty('online', 0);
+							$obj->callMethod('Lost', array('ADDRESS'=>$address));
+						}
 					}
 				}
 			}
