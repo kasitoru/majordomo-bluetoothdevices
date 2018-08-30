@@ -312,9 +312,12 @@ class bluetoothdevices extends module {
 								break;
 							}
 						}
-					} elseif(strtolower($this->config['scanMethod']) == 'connect') { // FIXME
+					} elseif(strtolower($this->config['scanMethod']) == 'connect') {
 						// Connect
-						echo date('Y/m/d H:i:s').' Method is not supported for Linux OS: '.$this->config['scanMethod'].PHP_EOL;
+						$data = exec('sudo hcitool cc '.$address.' 2>&1');
+						if(empty($data)) {
+							$is_found = true;
+						}
 					} else {
 						// Unknown
 						echo date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL;
