@@ -23,7 +23,7 @@ include_once(DIR_MODULES.'bluetoothdevices/bluetoothdevices.class.php');
 $bluetoothdevices_module = new bluetoothdevices();
 $bluetoothdevices_module->getConfig();
 
-echo 'Running bluetooth scanner'.PHP_EOL;
+echo date('Y/m/d H:i:s').' Running bluetooth scanner'.PHP_EOL;
 
 $scan_time = 0;
 

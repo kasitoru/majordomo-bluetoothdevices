@@ -69,7 +69,7 @@ class bluetoothdevices extends module {
 		if(isset($this->owner->name)) {
 			$out['PARENT_NAME']=$this->owner->name;
 		}
-		//$out['ID'] = $this->id; FIXME
+		$out['ID'] = $this->id;
 		$out['VIEW_MODE'] = $this->view_mode;
 		$out['EDIT_MODE'] = $this->edit_mode;
 		$out['MODE'] = $this->mode;
@@ -292,8 +292,8 @@ class bluetoothdevices extends module {
 					}
 					if(strtolower($this->config['scanMethod']) == 'ping') {
 						// Ping
-						$result = exec(str_replace('%ADDRESS%', $address, 'sudo l2ping %ADDRESS% -c10 -f | awk \'/loss/ {print $3}\''));
-						if(intval($result) > 0) {
+						$data = exec(str_replace('%ADDRESS%', $address, 'sudo l2ping %ADDRESS% -c1 -f | awk \'/loss/ {print $3}\''));
+						if(intval($data) > 0) {
 							$is_found = true;
 						}
 					} elseif(strtolower($this->config['scanMethod']) == 'discovery') {
@@ -320,13 +320,13 @@ class bluetoothdevices extends module {
 						}
 					} else {
 						// Unknown
-						echo date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL;
+						die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
 					}
 				} else {
 					// Windows
 					if(strtolower($this->config['scanMethod']) == 'ping') { // FIXME
 						// Ping
-						echo date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL;
+						die(date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL);
 					} elseif(strtolower($this->config['scanMethod']) == 'discovery') {
 						// Discovery
 						$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
@@ -355,7 +355,7 @@ class bluetoothdevices extends module {
 						}
 					} else {
 						// Unknown
-						echo date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL;
+						die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
 					}
 				}
 				// Update object
