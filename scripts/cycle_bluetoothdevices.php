@@ -23,12 +23,6 @@ include_once(DIR_MODULES.'bluetoothdevices/bluetoothdevices.class.php');
 $bluetoothdevices_module = new bluetoothdevices();
 $bluetoothdevices_module->getConfig();
 
-/*
-if(!getObjectsByClass($bluetoothdevices_module->classname)) {
-	exit; // no devices added -- no need to run this cycle
-}
-*/
-
 echo 'Running bluetooth scanner'.PHP_EOL;
 
 $scan_time = 0;

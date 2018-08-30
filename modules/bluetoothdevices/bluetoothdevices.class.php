@@ -382,6 +382,7 @@ class bluetoothdevices extends module {
 
 	// Uninstall
 	function uninstall() {
+		setGlobal('cycle_bluetoothdevicesControl', 'stop');
 		SQLExec("DELETE FROM `pvalues` WHERE `PROPERTY_ID` IN (SELECT `ID` FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')))");
 		SQLExec("DELETE FROM `history` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
 		SQLExec("DELETE FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
@@ -448,7 +449,7 @@ class bluetoothdevices extends module {
 		$this->getConfig();
 		$this->config['scanMethod'] = 'discovery';
 		$this->config['scanInterval'] = 60; // 1 min
-		$this->config['scanTimeout'] = 15*60; // 15 min
+		$this->config['scanTimeout'] = 5*60; // 5 min
 		$this->config['resetInterval'] = 2*60*60; // 2 hrs
 		$this->saveConfig();
 		
