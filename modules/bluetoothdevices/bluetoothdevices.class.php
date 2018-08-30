@@ -120,7 +120,7 @@ class bluetoothdevices extends module {
 		if($this->edit_mode == 'save') {
 			global $scanMethod, $scanInterval, $scanTimeout, $resetInterval;
 
-			$this->config['scanMethod'] = (strtolower($scanMethod)=='ping'?'ping':'discovery');
+			$this->config['scanMethod'] = strtolower($scanMethod);
 			$this->config['scanInterval'] = intval($scanInterval);
 			$this->config['scanTimeout'] = intval($scanTimeout);
 			$this->config['resetInterval'] = intval($resetInterval);
@@ -290,13 +290,13 @@ class bluetoothdevices extends module {
 						exec('sudo hciconfig hci0 down; sudo hciconfig hci0 up');
 						setGlobal('bluetoothdevices_resetTime', time());
 					}
-					if($this->config['scanMethod'] == 'ping') {
+					if(strtolower($this->config['scanMethod']) == 'ping') {
 						// Ping
 						$result = exec(str_replace('%ADDRESS%', $address, 'sudo l2ping %ADDRESS% -c10 -f | awk \'/loss/ {print $3}\''));
 						if(intval($result) > 0) {
 							$is_found = true;
 						}
-					} else {
+					} elseif(strtolower($this->config['scanMethod']) == 'discovery') {
 						// Discovery
 						$data = array();
 						exec('sudo hcitool scan | grep ":"', $data);
@@ -312,28 +312,48 @@ class bluetoothdevices extends module {
 								break;
 							}
 						}
+					} elseif(strtolower($this->config['scanMethod']) == 'connect') { // FIXME
+						// Connect
+						echo date('Y/m/d H:i:s').' Method is not supported for Linux OS: '.$this->config['scanMethod'].PHP_EOL;
+					} else {
+						// Unknown
+						echo date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL;
 					}
 				} else {
-					// Windows (only discovery)
-					$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
-					unlink($devices_file);
-					exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
-					if(file_exists($devices_file)) {
-						if($data = LoadFile($devices_file)) {
-							$data = str_replace(chr(0), '', $data);
-							$data = str_replace("\r", '', $data);
-							$lines = explode("\n", $data);
-							$total = count($lines);
-							for($i=0; $i<$total; $i++) {
-								$fields = explode("\t", $lines[$i]);
-								if(strtolower(trim($fields[2])) == $address) {
-									$is_found = true;
-									break;
+					// Windows
+					if(strtolower($this->config['scanMethod']) == 'ping') { // FIXME
+						// Ping
+						echo date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL;
+					} elseif(strtolower($this->config['scanMethod']) == 'discovery') {
+						// Discovery
+						$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
+						unlink($devices_file);
+						exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
+						if(file_exists($devices_file)) {
+							if($data = LoadFile($devices_file)) {
+								$data = str_replace(chr(0), '', $data);
+								$data = str_replace("\r", '', $data);
+								$lines = explode("\n", $data);
+								$total = count($lines);
+								for($i=0; $i<$total; $i++) {
+									$fields = explode("\t", $lines[$i]);
+									if(strtolower(trim($fields[2])) == $address) {
+										$is_found = true;
+										break;
+									}
 								}
 							}
 						}
+					} elseif(strtolower($this->config['scanMethod']) == 'connect') {
+						// Connect
+						exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
+						if($code == 0) {
+							$is_found = true;
+						}
+					} else {
+						// Unknown
+						echo date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL;
 					}
-
 				}
 				// Update object
 				if($is_found) {
@@ -426,7 +446,7 @@ class bluetoothdevices extends module {
 		
 		// Config
 		$this->getConfig();
-		$this->config['scanMethod'] = 'ping';
+		$this->config['scanMethod'] = 'discovery';
 		$this->config['scanInterval'] = 60; // 1 min
 		$this->config['scanTimeout'] = 15*60; // 15 min
 		$this->config['resetInterval'] = 2*60*60; // 2 hrs

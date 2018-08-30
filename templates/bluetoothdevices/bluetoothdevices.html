@@ -129,8 +129,9 @@
 			<div class="form-group">
 				<label class="col-lg-3 control-label">Метод поиска устройств:</label>
 				<div class="col-lg-8">
-					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запросы (только для Linux)</label>
 					<label class="radio"><input type="radio" name="scanMethod" value="discovery" [#if SCAN_METHOD="discovery"#] checked[#endif#]>Сканирование радиоэфира</label>
+					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запросы (только для Linux)</label>
+					<label class="radio"><input type="radio" name="scanMethod" value="connect" [#if SCAN_METHOD="connect"#] checked[#endif#]>Подключение к устройству (только для Windows)</label>
 				</div>
 			</div>
 			<div class="form-group">
