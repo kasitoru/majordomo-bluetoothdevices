@@ -300,7 +300,7 @@ class bluetoothdevices extends module {
 						// Discovery
 						$data = array();
 						exec('sudo hcitool scan | grep ":"', $data);
-						exec('timeout -s INT 30s hcitool lescan | grep ":"', $data);
+						exec('sudo timeout -s INT 30s hcitool lescan | grep ":"', $data);
 						$total = count($data);
 						for($i=0; $i<$total; $i++) {
 							$data[$i] = trim($data[$i]);
