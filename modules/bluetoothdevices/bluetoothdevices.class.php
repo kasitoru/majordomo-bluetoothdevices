@@ -282,80 +282,112 @@ class bluetoothdevices extends module {
 				$address = strtolower($obj->getProperty('address'));
 				// Search device
 				$is_found = false;
-				if(!IsWindowsOS()) {
+				$scanMethod = strtolower($this->config['scanMethod']);
+				if(IsWindowsOS()) {
+					// Windows
+					switch($scanMethod) {
+						case 'hybrid': // Hybrid method
+						case 'ping': // Ping
+							// FIXME: BluetoothView (v1.66) does not support ping
+							if($scanMethod != 'hybrid') {
+								die(date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL);
+								break;
+							}
+						case 'discovery': // Discovery
+							// FIXME: does not find BLE devices
+							// FIXME: finds an offline device if it is paired
+							if(!$is_found) {
+								$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
+								unlink($devices_file);
+								exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
+								if(file_exists($devices_file)) {
+									if($data = LoadFile($devices_file)) {
+										$data = str_replace(chr(0), '', $data);
+										$data = str_replace("\r", '', $data);
+										$lines = explode("\n", $data);
+										$total = count($lines);
+										for($i=0; $i<$total; $i++) {
+											$fields = explode("\t", $lines[$i]);
+											if(strtolower(trim($fields[2])) == $address) {
+												$is_found = true;
+												break;
+											}
+										}
+									}
+								}
+							}
+							if($scanMethod != 'hybrid') {
+								break;
+							}
+						case 'connect': // Connect
+							if(!$is_found) {
+								exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
+								if($code == 0) {
+									$is_found = true;
+								}
+							}
+							if($scanMethod != 'hybrid') {
+								break;
+							}
+						default: // Unknown
+							if($scanMethod != 'hybrid') {
+								die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
+							}
+					}
+				} else {
 					// Linux
-					if(time()-intval(getGlobal('bluetoothdevices_resetTime') > intval($this->config['resetInterval']))) {
+					if((intval($this->config['resetInterval']) >= 0) && (time()-intval(getGlobal('bluetoothdevices_resetTime') > intval($this->config['resetInterval'])))) {
 						// Reset bluetooth
 						echo date('Y/m/d H:i:s').' Reset bluetooth'.PHP_EOL;
 						exec('sudo hciconfig hci0 down; sudo hciconfig hci0 up');
 						setGlobal('bluetoothdevices_resetTime', time());
 					}
-					if(strtolower($this->config['scanMethod']) == 'ping') {
-						// Ping
-						$data = exec(str_replace('%ADDRESS%', $address, 'sudo l2ping %ADDRESS% -c1 -f | awk \'/loss/ {print $3}\''));
-						if(intval($data) > 0) {
-							$is_found = true;
-						}
-					} elseif(strtolower($this->config['scanMethod']) == 'discovery') {
-						// Discovery
-						$data = array();
-						exec('sudo hcitool scan | grep ":"', $data);
-						exec('sudo timeout -s INT 30s hcitool lescan | grep ":"', $data);
-						$total = count($data);
-						for($i=0; $i<$total; $i++) {
-							$data[$i] = trim($data[$i]);
-							if(!$data[$i]) {
-								continue;
+					switch($scanMethod) {
+						case 'hybrid': // Hybrid method
+						case 'ping': // Ping
+							if(!$is_found) {
+								$data = exec(str_replace('%ADDRESS%', $address, 'sudo l2ping %ADDRESS% -c1 -f | awk \'/loss/ {print $3}\''));
+								if(intval($data) > 0) {
+									$is_found = true;
+								}
 							}
-							if(strtolower(substr($data[$i], 0, 17)) == $address) {
-								$is_found = true;
+							if($scanMethod != 'hybrid') {
 								break;
 							}
-						}
-					} elseif(strtolower($this->config['scanMethod']) == 'connect') {
-						// Connect
-						$data = exec('sudo hcitool cc '.$address.' 2>&1');
-						if(empty($data)) {
-							$is_found = true;
-						}
-					} else {
-						// Unknown
-						die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
-					}
-				} else {
-					// Windows
-					if(strtolower($this->config['scanMethod']) == 'ping') { // FIXME
-						// Ping
-						die(date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL);
-					} elseif(strtolower($this->config['scanMethod']) == 'discovery') {
-						// Discovery
-						$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
-						unlink($devices_file);
-						exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
-						if(file_exists($devices_file)) {
-							if($data = LoadFile($devices_file)) {
-								$data = str_replace(chr(0), '', $data);
-								$data = str_replace("\r", '', $data);
-								$lines = explode("\n", $data);
-								$total = count($lines);
+						case 'discovery': // Discovery
+							if(!$is_found) {
+								$data = array();
+								exec('sudo hcitool scan | grep ":"', $data);
+								exec('sudo timeout -s INT 30s hcitool lescan | grep ":"', $data);
+								$total = count($data);
 								for($i=0; $i<$total; $i++) {
-									$fields = explode("\t", $lines[$i]);
-									if(strtolower(trim($fields[2])) == $address) {
+									$data[$i] = trim($data[$i]);
+									if(!$data[$i]) {
+										continue;
+									}
+									if(strtolower(substr($data[$i], 0, 17)) == $address) {
 										$is_found = true;
 										break;
 									}
 								}
 							}
-						}
-					} elseif(strtolower($this->config['scanMethod']) == 'connect') {
-						// Connect
-						exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
-						if($code == 0) {
-							$is_found = true;
-						}
-					} else {
-						// Unknown
-						die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
+							if($scanMethod != 'hybrid') {
+								break;
+							}
+						case 'connect': // Connect
+							if(!$is_found) {
+								$data = exec('sudo hcitool cc '.$address.' 2>&1');
+								if(empty($data)) {
+									$is_found = true;
+								}
+							}
+							if($scanMethod != 'hybrid') {
+								break;
+							}
+						default: // Unknown
+							if($scanMethod != 'hybrid') {
+								die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
+							}
 					}
 				}
 				// Update object
@@ -452,7 +484,13 @@ class bluetoothdevices extends module {
 		
 		// Config
 		$this->getConfig();
-		$this->config['scanMethod'] = 'discovery';
+		if(IsWindowsOS()) {
+			// Windows
+			$this->config['scanMethod'] = 'connect';
+		} else {
+			// Linux
+			$this->config['scanMethod'] = 'hybrid';
+		}
 		$this->config['scanInterval'] = 60; // 1 min
 		$this->config['scanTimeout'] = 5*60; // 5 min
 		$this->config['resetInterval'] = 2*60*60; // 2 hrs

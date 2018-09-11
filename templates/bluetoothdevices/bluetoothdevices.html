@@ -129,9 +129,11 @@
 			<div class="form-group">
 				<label class="col-lg-3 control-label">Метод поиска устройств:</label>
 				<div class="col-lg-8">
+					<label class="radio"><input type="radio" name="scanMethod" value="hybrid" [#if SCAN_METHOD="hybrid"#] checked[#endif#]>Гибридный</label>
+					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запрос (только для Linux)</label>
 					<label class="radio"><input type="radio" name="scanMethod" value="discovery" [#if SCAN_METHOD="discovery"#] checked[#endif#]>Сканирование радиоэфира</label>
 					<label class="radio"><input type="radio" name="scanMethod" value="connect" [#if SCAN_METHOD="connect"#] checked[#endif#]>Прямое подключение</label>
-					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запрос (только для Linux)</label>
+					<p class="help-block">Обратите внимание, что на данный момент отслеживание BLE устройств доступно только для платформы Linux.</p>
 				</div>
 			</div>
 			<div class="form-group">
@@ -152,7 +154,7 @@
 				<label class="col-lg-3 control-label">Интервал перезагрузки:</label>
 				<div class="col-lg-8">
 					<input type="text" class="form-control" name="resetInterval" value="[#RESET_INTERVAL#]" id="resetInterval">
-					<p class="help-block">Время в секундах, по прошествию которого будет производится перезагрузка Bluetooth модуля (только для Linux систем).</p>
+					<p class="help-block">Время в секундах, по прошествию которого будет производится перезагрузка Bluetooth модуля (только для Linux систем). Чтобы отключить данную функцию введите -1 (минус один).</p>
 				</div>
 			</div>
 			<div class="form-group">
