@@ -328,6 +328,7 @@ class bluetoothdevices extends module {
 				$out['DEVICES'][] = array(
 					'ID'			=> $obj->id,
 					'OBJECT'		=> $obj->object_title,
+					'CLASS_ID'		=> $obj->class_id,
 					'DESCRIPTION'	=> $obj->description,
 					'ONLINE'		=> $obj->getProperty('online'),
 					'ADDRESS'		=> strtolower($obj->getProperty('address')),
