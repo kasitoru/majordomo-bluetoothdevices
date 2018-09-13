@@ -13,6 +13,9 @@
 		[#endif#]
 	</div>
 	<br>
+	[#if BV_UNSUPPORTED_VERSION==1#]
+		<div class="alert alert-warning"><strong>Внимание!</strong> Для полноценной работы модуля необходим BluetoothView версии не ниже 1.41. Скачать вы его можете с <a href="http://www.nirsoft.net/utils/bluetoothview.zip" target="_blank">официального сайта</a>.</div>
+	[#endif#]
 	[#if DEVICES#]
 	<table align="center" class="table table-striped">
 		<tr>
@@ -129,32 +132,35 @@
 			<div class="form-group">
 				<label class="col-lg-3 control-label">Метод поиска устройств:</label>
 				<div class="col-lg-8">
-					<label class="radio"><input type="radio" name="scanMethod" value="hybrid" [#if SCAN_METHOD="hybrid"#] checked[#endif#]>Гибридный</label>
-					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запрос (только для Linux)</label>
-					<label class="radio"><input type="radio" name="scanMethod" value="discovery" [#if SCAN_METHOD="discovery"#] checked[#endif#]>Сканирование радиоэфира</label>
-					<label class="radio"><input type="radio" name="scanMethod" value="connect" [#if SCAN_METHOD="connect"#] checked[#endif#]>Прямое подключение</label>
-					<p class="help-block">Обратите внимание, что на данный момент отслеживание BLE устройств доступно только для платформы Linux.</p>
+					<label class="radio"><input type="radio" name="scanMethod" value="hybrid" [#if SCAN_METHOD="hybrid"#] checked[#endif#][#if IS_HYBRID_AVAILABLE==0#] disabled[#endif#]>Гибридный</label>
+					<p class="help-block">Совмещает в себе все нижеперечисленные методы. <strong>Рекомендуется к использованию на Linux</strong> (на Windows же наоборот - вызывает ложные срабатывания, потому недоступен).</p>
+					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#][#if IS_PING_AVAILABLE==0#] disabled[#endif#]>PING запросы</label>
+					<p class="help-block">Метод поиска посредством отправки PING запросов. Позволяет отслеживать устройства с отключенным режимом обнаружения. На данный момент доступно только для Linux.</p>
+					<label class="radio"><input type="radio" name="scanMethod" value="discovery" [#if SCAN_METHOD="discovery"#] checked[#endif#][#if IS_SCAN_AVAILABLE==0#] disabled[#endif#]>Сканирование радиоэфира</label>
+					<p class="help-block">Поиск необходимого устройства среди списка всех доступных. На Linux позволяет так же отслеживать и BLE (Bluetooth Low Energy) девайсы.</p>
+					<label class="radio"><input type="radio" name="scanMethod" value="connect" [#if SCAN_METHOD="connect"#] checked[#endif#][#if IS_CONNECT_AVAILABLE==0#] disabled[#endif#]>Прямое подключение</label>
+					<p class="help-block">Определение доступности устройства на основе результатов попытки прямого подключения к нему. <strong>Рекомендуется к использованию на Windows</strong> (необходим BluetoothView версии не ниже 1.44 и предварительное сопряжение с конечными устройствами).</p>
 				</div>
 			</div>
 			<div class="form-group">
 				<label class="col-lg-3 control-label">Интервал сканирования:</label>
 				<div class="col-lg-8">
 					<input type="text" class="form-control" name="scanInterval" value="[#SCAN_INTERVAL#]" id="scanInterval">
-					<p class="help-block">Временная задержка в секундах между процедурами поиска устройств.</p>
+					<p class="help-block">Временная задержка в секундах между процедурами поиска устройств.<br />Рекомендуемое значение: 60</p>
 				</div>
 			</div>
 			<div class="form-group">
 				<label class="col-lg-3 control-label">Таймаут доступности:</label>
 				<div class="col-lg-8">
 					<input type="text" class="form-control" name="scanTimeout" value="[#SCAN_TIMEOUT#]" id="scanTimeout">
-					<p class="help-block">Время в секундах, если спустя которое устройство не отвечает, связь с ним будет считаться потерянной.</p>
+					<p class="help-block">Время в секундах, если спустя которое устройство не отвечает, связь с ним будет считаться потерянной.<br />Рекомендуемое значение: 300</p>
 				</div>
 			</div>
 			<div class="form-group">
 				<label class="col-lg-3 control-label">Интервал перезагрузки:</label>
 				<div class="col-lg-8">
 					<input type="text" class="form-control" name="resetInterval" value="[#RESET_INTERVAL#]" id="resetInterval">
-					<p class="help-block">Время в секундах, по прошествию которого будет производится перезагрузка Bluetooth модуля (только для Linux систем). Чтобы отключить данную функцию введите -1 (минус один).</p>
+					<p class="help-block">Время в секундах, по прошествию которого будет производится перезагрузка Bluetooth модуля (только для Linux систем). Чтобы отключить данную функцию введите -1 (минус один).<br />Рекомендуемое значение: 7200</p>
 				</div>
 			</div>
 			<div class="form-group">

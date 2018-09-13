@@ -16,6 +16,53 @@ class bluetoothdevices extends module {
 		$this->checkInstalled();
 	}
 
+	// Get product version (for exe files)
+	private function get_product_version($file) {
+		if($data = @file_get_contents($file)) {
+			$key = "V\x00S\x00_\x00V\x00E\x00R\x00S\x00I\x00O\x00N\x00_\x00I\x00N\x00F\x00O\x00\x00\x00";
+			$key_pos = strpos($data, $key);
+			if($key_pos === FALSE) {
+				return '';
+			}
+			$data = substr($data, $key_pos);
+			$key = "P\x00r\x00o\x00d\x00u\x00c\x00t\x00V\x00e\x00r\x00s\x00i\x00o\x00n\x00\x00\x00";
+			$key_pos = strpos($data, $key);
+			if($key_pos === FALSE) {
+				return '';
+			}
+			$version = '';
+			$key_pos = $key_pos + strlen($key);
+			for($i=$key_pos; $data[$i]!="\x00"; $i+=2) {
+				$version .= $data[$i];
+			}
+			$version = str_replace(',', '.', $version);
+			return trim($version);
+		} else {
+			return NULL;
+		}
+	}
+
+	// Compare programs versions
+	private function compare_programs_versions($first, $second) {
+		$fvc = substr_count($first, '.');
+		$svc = substr_count($second, '.');
+		if($fvc > $svc) {
+			$dvc = $fvc;
+		} else {
+			$dvc = $svc;
+		}
+		$fvf= explode('.', $first);
+		$svf = explode('.', $second);
+		for($i=0;$i<=$dvc;$i++) {
+			if(intval($svf[$i]) > intval($fvf[$i])) {
+				return TRUE;
+			} elseif(intval($svf[$i]) < intval($fvf[$i])) {
+				return FALSE;
+			}
+		}
+		return FALSE;
+	}
+	
 	// saveParams
 	function saveParams($data=0) {
 		$p = array();
@@ -106,6 +153,16 @@ class bluetoothdevices extends module {
 					$this->list_bluetoothdevices($out);
 			}
 		}
+		// BluetoothView
+		$out['BV_UNSUPPORTED_VERSION'] = (int)FALSE;
+		if(IsWindowsOS()) {
+			$out['BV_UNSUPPORTED_VERSION']	= (int)TRUE;
+			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
+				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
+					$out['BV_UNSUPPORTED_VERSION'] = (int)FALSE;
+				}
+			}
+		}
 	}
 	
 	// Settings
@@ -133,6 +190,21 @@ class bluetoothdevices extends module {
 		$out['SCAN_INTERVAL'] = $scanInterval;
 		$out['SCAN_TIMEOUT'] = $scanTimeout;
 		$out['RESET_INTERVAL'] = $resetInterval;
+
+		$out['IS_HYBRID_AVAILABLE']		= (int)!IsWindowsOS();
+		$out['IS_PING_AVAILABLE']		= (int)!IsWindowsOS();
+		$out['IS_SCAN_AVAILABLE']		= (int)TRUE;
+		$out['IS_CONNECT_AVAILABLE']	= (int)TRUE;
+		// BluetoothView
+		if(IsWindowsOS()) {
+			$out['IS_CONNECT_AVAILABLE']	= (int)FALSE;
+			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
+				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
+					$out['IS_CONNECT_AVAILABLE'] = (int)TRUE;
+				}
+			}
+		}
+
 	}
 
 	// Add bluetooth device
@@ -287,6 +359,7 @@ class bluetoothdevices extends module {
 					// Windows
 					switch($scanMethod) {
 						case 'hybrid': // Hybrid method
+							die(date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL);
 						case 'ping': // Ping
 							// FIXME: BluetoothView (v1.66) does not support ping
 							if($scanMethod != 'hybrid') {
@@ -319,11 +392,23 @@ class bluetoothdevices extends module {
 							if($scanMethod != 'hybrid') {
 								break;
 							}
-						case 'connect': // Connect
+						case 'connect': // Connect (version >= 1.41)
 							if(!$is_found) {
-								exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
-								if($code == 0) {
-									$is_found = true;
+								$method_is_supported = FALSE;
+								if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
+									if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
+										$method_is_supported = TRUE;
+									}
+								}
+								if($method_is_supported) {
+									exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
+									if($code == 0) {
+										$is_found = true;
+									}
+								} else {
+									if($scanMethod != 'hybrid') {
+										die(date('Y/m/d H:i:s').' The current version of BluetoothView is lower than required (1.41)!');
+									}
 								}
 							}
 							if($scanMethod != 'hybrid') {
@@ -486,7 +571,12 @@ class bluetoothdevices extends module {
 		$this->getConfig();
 		if(IsWindowsOS()) {
 			// Windows
-			$this->config['scanMethod'] = 'connect';
+			$this->config['scanMethod'] = 'discovery';
+			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
+				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
+					$this->config['scanMethod'] = 'connect';
+				}
+			}
 		} else {
 			// Linux
 			$this->config['scanMethod'] = 'hybrid';
