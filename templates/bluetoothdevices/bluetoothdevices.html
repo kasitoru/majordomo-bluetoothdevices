@@ -20,14 +20,14 @@
 	[#endif#]
 	[#if DEVICES#]
 	<table align="center" class="table table-striped">
-		<tr>
-			<td><b>Объект</b></td>
-			<td>&nbsp;</td>
-			<td><b>Описание</b></td>
-			<td><b>Адрес устройства</b></td>
-			<td><b>Последняя активность</b></td>
-			<td><b>Пользователь</b></td>
-			<td>&nbsp;</td>
+		<tr class="table_header">
+			<th>Объект</th>
+			<th>&nbsp;</th>
+			<th>Описание</th>
+			<th>Адрес устройства</th>
+			<th>Последняя активность</th>
+			<th>Пользователь</th>
+			<th>&nbsp;</th>
 		</tr>
 		[#begin DEVICES#]
 		<tr>
@@ -57,6 +57,58 @@
 
 [#if VIEW_MODE="add_bluetoothdevices"#]
 	[#if ERROR_TEXT#]<div class="alert alert-error">[#ERROR_TEXT#]</div>[#endif#]
+	[#if IS_SCAN_AVAILABLE==1#]
+		<script type="text/javascript">
+			// Scan bluetooth devices
+			function bluetooth_rescan() {
+				if($('#bluetooth_searching').is(':hidden')) {
+					$('.bt_scan_btn').css('color', '#ccc');
+					$('table.devices_list').find('tr').not('.table_header').remove();
+					$('#bluetooth_searching').show();
+					$.ajax({
+						url: '/apps/bluetoothdevices.html?ajax=1&command=scan',
+						dataType: 'json'
+					}).done(function(json) {
+						if(json.success) {
+							json.data.forEach(function(item) {
+								$('table.devices_list tr:last').after('<tr><td class="bt_address" style="vertical-align: middle; padding-left: 15px;">'+item.address+'</td><td class="bt_name" style="vertical-align: middle;">'+item.name+'</td><td style="vertical-align: middle; padding-right: 15px; text-align: right;"><a href="#" class="btn btn-default btn-sm" title="Выбрать устройство" onclick="return bluetooth_select(this);"><i class="glyphicon glyphicon-ok"></i></a></td></tr>');
+							});
+						} else {
+							console.warn(json.message);
+						}
+					}).fail(function(jqXHR) {
+						console.error('Error '+jqXHR.status+': '+jqXHR.statusText);
+					}).always(function() {
+						$('#bluetooth_searching').hide();
+						$('.bt_scan_btn').css('color', '');
+					});
+				}
+			}
+			
+			// Select bluetooth device
+			function bluetooth_select(obj) {
+				var tr = $(obj).closest('tr');
+				var address = $(tr).find('td.bt_address').text();
+				var name = $(tr).find('td.bt_name').text();
+				$('input[name=address]').val(address);
+				$('input[name=description]').val(name);
+			}
+			
+			// Page has fully loaded
+			$(document).ready(function() {
+				bluetooth_rescan();
+			});
+		</script>
+		<table align="center" class="table table-striped devices_list">
+			<tr class="table_header">
+				<th style="vertical-align: middle; padding-left: 15px;">Адрес устройства</th>
+				<th style="vertical-align: middle;">Имя устройства</th>
+				<th style="vertical-align: middle; padding-right: 15px; text-align: right;"><a href="#" class="btn btn-default btn-sm bt_scan_btn" title="Обновить список" onclick="return bluetooth_rescan();"><i class="glyphicon glyphicon-refresh"></i></a></th>
+			</tr>
+		</table>
+		<div id="bluetooth_searching" style="text-align: center; display: none;">Поиск Bluetooth устройств...</div>
+		<hr>
+	[#endif#]
 	<form action="?" method="post" class="form-horizontal">
 		<fieldset>
 			<div class="form-group">

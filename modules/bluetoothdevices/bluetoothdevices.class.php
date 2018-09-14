@@ -26,10 +26,8 @@ class bluetoothdevices extends module {
 		if(IsWindowsOS()) {
 			// Windows
 			$this->scanMethod = 'discovery';
-			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
-				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
-					$this->scanMethod = 'connect';
-				}
+			if($this->check_programs_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe', '1.41')) {
+				$this->scanMethod = 'connect';
 			}
 		} else {
 			// Linux
@@ -108,16 +106,27 @@ class bluetoothdevices extends module {
 		return FALSE;
 	}
 	
+	// Check programs version
+	private function check_programs_version($exe, $version) {
+		$results = FALSE;
+		if($product_version = $this->get_product_version($exe)) {
+			if(!$this->compare_programs_versions($product_version, $version)) {
+				$results = TRUE;
+			}
+		}
+		return $results;
+	}
+	
 	// Bluetooth: reset
 	private function bluetooth_reset(&$messages=array()) {
 		$results = FALSE;
 		if(IsWindowsOS()) {
 			// Windows
-			$messages[] = date('[d/m/Y H:i:s]:').' Reset bluetooth is not supported for Windows OS!';
+			$messages[] = array('time' => time(), 'text' => 'Reset bluetooth is not supported for Windows OS!');
 		} else {
 			// Linux
 			$this->get_config();
-			$messages[] = date('[d/m/Y H:i:s]:').' Reset bluetooth...';
+			$messages[] = array('time' => time(), 'text' => 'Reset bluetooth...');
 			exec(($this->sudo?'sudo ':'').'hciconfig hci0 down; sudo hciconfig hci0 up');
 			setGlobal('bluetoothdevices_resetTime', time());
 			$results = TRUE;
@@ -132,9 +141,8 @@ class bluetoothdevices extends module {
 			// Windows
 			// FIXME: does not find BLE devices
 			// FIXME: finds an offline device if it is paired
-			$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
-			@unlink($devices_file);
-			exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
+			$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices_'.uniqid().'.txt';
+			exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab "'.$devices_file.'"');
 			if(file_exists($devices_file)) {
 				if($data = LoadFile($devices_file)) {
 					$data = str_replace(chr(0), '', $data);
@@ -143,17 +151,22 @@ class bluetoothdevices extends module {
 					$total = count($lines);
 					for($i=0; $i<$total; $i++) {
 						$fields = explode("\t", $lines[$i]);
-						$results[] = array(
-							'address'	=> strtolower($fields[2]),
-							'name'		=> trim($fields[1]),
-						);
+						$address = trim(strtolower($fields[2]));
+						$name = trim($fields[1]);
+						if(!empty($address)) {
+							$results[] = array(
+								'address'	=> $address,
+								'name'		=> $name,
+							);
+						}
 					}
 				} else {
-					$messages[] = date('[d/m/Y H:i:s]:').' Error opening file "'.$devices_file.'"!';
+					$messages[] = array('time' => time(), 'text' => 'Error opening file "'.$devices_file.'"!');
 					$results = FALSE;
 				}
+				@unlink($devices_file);
 			} else {
-				$messages[] = date('[d/m/Y H:i:s]:').' Missing file "'.$devices_file.'"!';
+				$messages[] = array('time' => time(), 'text' => 'Missing file "'.$devices_file.'"!');
 				$results = FALSE;
 			}
 		} else {
@@ -165,13 +178,14 @@ class bluetoothdevices extends module {
 			$total = count($data);
 			for($i=0; $i<$total; $i++) {
 				$data[$i] = trim($data[$i]);
-				if(!$data[$i]) {
-					continue;
+				$address = trim(strtolower(substr($data[$i], 0, 17)));
+				$name = trim(substr($data[$i], 17));
+				if(!empty($address)) {
+					$results[] = array(
+						'address'	=> $address,
+						'name'		=> $name,
+					);
 				}
-				$results[] = array(
-					'address'	=> strtolower(substr($data[$i], 0, 17)),
-					'name'		=> trim(substr($data[$i], 17)),
-				);
 			}
 		}
 		return $results;
@@ -200,7 +214,7 @@ class bluetoothdevices extends module {
 		$results = FALSE;
 		if(IsWindowsOS()) {
 			// Windows
-			$messages[] = date('[d/m/Y H:i:s]:').' Method "ping" is not supported for Windows OS!';
+			$messages[] = array('time' => time(), 'text' => 'Method "ping" is not supported for Windows OS!');
 		} else {
 			// Linux
 			$this->get_config();
@@ -214,7 +228,7 @@ class bluetoothdevices extends module {
 
 	// Bluetooth: discovery
 	private function bluetooth_discovery($address, &$messages=array()) {
-		$devices = bluetooth_scan($messages);
+		$devices = $this->bluetooth_scan($messages);
 		if(is_array($devices)) {
 			foreach($devices as $device) {
 				if($device['address'] == $address) {
@@ -230,18 +244,14 @@ class bluetoothdevices extends module {
 		$results = FALSE;
 		if(IsWindowsOS()) {
 			// Windows
-			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
-				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
-					// BluetoothView version >= 1.41
-					exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
-					if($code == 0) {
-						$results = TRUE;
-					}
-				} else {
-					$messages[] = date('[d/m/Y H:i:s]:').' The current version of BluetoothView is lower than required (1.41)!';
+			if($this->check_programs_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe', '1.41')) {
+				// BluetoothView version >= 1.41
+				exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
+				if($code == 0) {
+					$results = TRUE;
 				}
 			} else {
-				$messages[] = date('[d/m/Y H:i:s]:').' it is impossible to determine the version of BluetoothView!';
+				$messages[] = array('time' => time(), 'text' => 'The current version of BluetoothView is lower than required (1.41)!');
 			}
 		} else {
 			// Linux
@@ -327,6 +337,11 @@ class bluetoothdevices extends module {
 		}
 		// OS type
 		$out['IS_WINDOWS_OS'] = (int)IsWindowsOS();
+		// Features
+		$out['IS_HYBRID_AVAILABLE']		= (int)!IsWindowsOS();
+		$out['IS_PING_AVAILABLE']		= (int)!IsWindowsOS();
+		$out['IS_SCAN_AVAILABLE']		= (int)TRUE;
+		$out['IS_CONNECT_AVAILABLE']	= (int)TRUE;
 		// Views
 		if($this->data_source == 'bluetoothdevices' || $this->data_source == '') {
 			switch($this->view_mode) {
@@ -350,10 +365,8 @@ class bluetoothdevices extends module {
 		$out['BV_UNSUPPORTED_VERSION'] = (int)FALSE;
 		if(IsWindowsOS()) {
 			$out['BV_UNSUPPORTED_VERSION']	= (int)TRUE;
-			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
-				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
-					$out['BV_UNSUPPORTED_VERSION'] = (int)FALSE;
-				}
+			if($this->check_programs_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe', '1.41')) {
+				$out['BV_UNSUPPORTED_VERSION'] = (int)FALSE;
 			}
 		}
 	}
@@ -379,18 +392,11 @@ class bluetoothdevices extends module {
 		$out['SCAN_INTERVAL'] = $this->scanInterval;
 		$out['SCAN_TIMEOUT'] = $this->scanTimeout;
 		$out['RESET_INTERVAL'] = $this->resetInterval;
-		// Features
-		$out['IS_HYBRID_AVAILABLE']		= (int)!IsWindowsOS();
-		$out['IS_PING_AVAILABLE']		= (int)!IsWindowsOS();
-		$out['IS_SCAN_AVAILABLE']		= (int)TRUE;
-		$out['IS_CONNECT_AVAILABLE']	= (int)TRUE;
 		// BluetoothView
 		if(IsWindowsOS()) {
 			$out['IS_CONNECT_AVAILABLE']	= (int)FALSE;
-			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
-				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
-					$out['IS_CONNECT_AVAILABLE'] = (int)TRUE;
-				}
+			if($this->check_programs_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe', '1.41')) {
+				$out['IS_CONNECT_AVAILABLE'] = (int)TRUE;
 			}
 		}
 	}
@@ -512,7 +518,46 @@ class bluetoothdevices extends module {
 
 	// FrontEnd
 	function usual(&$out) {
-		global $session;
+		global $session, $ajax, $command;
+		if(isset($ajax)) {
+			// JSON default
+			$json = array(
+				'command'			=> $command,
+				'success'			=> FALSE,
+				'message'			=> NULL,
+				'data'				=> NULL,
+			);
+			// Command
+			switch($command) {
+				case 'scan':
+					$messages = array();
+					$data = $this->bluetooth_scan($messages);
+					if(is_array($data)) {
+						$json['success'] = TRUE;
+						$json['message'] = 'OK';
+						$json['data'] = $data;
+					} else {
+						$json['success'] = FALSE;
+						if(count($messages) > 0) {
+							foreach($messages as $message) {
+								$json['message'] .= $message['text'].' ';
+							}
+							$json['message'] = trim($json['message']);
+						} else {
+							$json['message'] = 'bluetooth_scan() error!';
+						}
+					}
+					break;
+				default:
+					$json['success'] = FALSE;
+					$json['message'] = 'Unknown command!';
+			}
+			// Return json
+			if(!$this->intCall) {
+				$session->save();
+				die(json_encode($json));
+			}
+		}
 	}
 	
 	// Cycle
@@ -536,20 +581,20 @@ class bluetoothdevices extends module {
 						$is_found = $this->bluetooth_hybrid($address, $messages);
 						break;
 					case 'ping': // Ping
-						$is_found = $this->bluetooth_hybrid($address, $messages);
+						$is_found = $this->bluetooth_ping($address, $messages);
 						break;
 					case 'discovery': // Discovery
-						$is_found = $this->bluetooth_hybrid($address, $messages);
+						$is_found = $this->bluetooth_discovery($address, $messages);
 						break;
 					case 'connect': // Connect
-						$is_found = $this->bluetooth_hybrid($address, $messages);
+						$is_found = $this->bluetooth_connect($address, $messages);
 						break;
 					default:
-						$messages[] = date('[d/m/Y H:i:s]:').' Unknown method "'.$this->scanMethod.'"!';
+						$messages[] = array('time' => time(), 'text' => 'Unknown method "'.$this->scanMethod.'"!');
 				}
 				// Print messages
 				foreach($messages as $message) {
-					echo $message.PHP_EOL;
+					echo date('[d/m/Y H:i:s]:', $message['time']).' '.$message['text'].PHP_EOL;
 				}
 				// Update object
 				if($is_found) {
