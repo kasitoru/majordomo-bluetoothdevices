@@ -7,6 +7,13 @@
 
 class bluetoothdevices extends module {
 	
+	// Private properties
+	private $sudo;
+	private $scanMethod;
+	private $scanInterval;
+	private $scanTimeout;
+	private $resetInterval;
+
 	// Constructor
 	function bluetoothdevices() {
 		$this->name = 'bluetoothdevices';
@@ -14,6 +21,44 @@ class bluetoothdevices extends module {
 		$this->module_category = '<#LANG_SECTION_DEVICES#>';
 		$this->classname = 'BluetoothDevices';
 		$this->checkInstalled();
+		// Defaults
+		$this->sudo = TRUE;
+		if(IsWindowsOS()) {
+			// Windows
+			$this->scanMethod = 'discovery';
+			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
+				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
+					$this->scanMethod = 'connect';
+				}
+			}
+		} else {
+			// Linux
+			$this->scanMethod = 'hybrid';
+		}
+		$this->scanInterval = 60;
+		$this->scanTimeout = 5*60;
+		$this->resetInterval = 2*60*60;
+	}
+	
+	// Get config
+	private function get_config() {
+		$this->getConfig();
+		$this->sudo				= $this->config['sudo'];
+		$this->scanMethod		= $this->config['scanMethod'];
+		$this->scanInterval		= $this->config['scanInterval'];
+		$this->scanTimeout		= $this->config['scanTimeout'];
+		$this->resetInterval	= $this->config['resetInterval'];
+	}
+	
+	// Save config
+	private function save_config() {
+		$this->getConfig();
+		$this->config['sudo']			= $this->sudo;
+		$this->config['scanMethod']		= $this->scanMethod;
+		$this->config['scanInterval']	= $this->scanInterval;
+		$this->config['scanTimeout']	= $this->scanTimeout;
+		$this->config['resetInterval']	= $this->resetInterval;
+		$this->saveConfig();
 	}
 
 	// Get product version (for exe files)
@@ -63,6 +108,152 @@ class bluetoothdevices extends module {
 		return FALSE;
 	}
 	
+	// Bluetooth: reset
+	private function bluetooth_reset(&$messages=array()) {
+		$results = FALSE;
+		if(IsWindowsOS()) {
+			// Windows
+			$messages[] = date('[d/m/Y H:i:s]:').' Reset bluetooth is not supported for Windows OS!';
+		} else {
+			// Linux
+			$this->get_config();
+			$messages[] = date('[d/m/Y H:i:s]:').' Reset bluetooth...';
+			exec(($this->sudo?'sudo ':'').'hciconfig hci0 down; sudo hciconfig hci0 up');
+			setGlobal('bluetoothdevices_resetTime', time());
+			$results = TRUE;
+		}
+		return $results;
+	}
+	
+	// Bluetooth: scan
+	private function bluetooth_scan(&$messages=array()) {
+		$results = array();
+		if(IsWindowsOS()) {
+			// Windows
+			// FIXME: does not find BLE devices
+			// FIXME: finds an offline device if it is paired
+			$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
+			@unlink($devices_file);
+			exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
+			if(file_exists($devices_file)) {
+				if($data = LoadFile($devices_file)) {
+					$data = str_replace(chr(0), '', $data);
+					$data = str_replace("\r", '', $data);
+					$lines = explode("\n", $data);
+					$total = count($lines);
+					for($i=0; $i<$total; $i++) {
+						$fields = explode("\t", $lines[$i]);
+						$results[] = array(
+							'address'	=> strtolower($fields[2]),
+							'name'		=> trim($fields[1]),
+						);
+					}
+				} else {
+					$messages[] = date('[d/m/Y H:i:s]:').' Error opening file "'.$devices_file.'"!';
+					$results = FALSE;
+				}
+			} else {
+				$messages[] = date('[d/m/Y H:i:s]:').' Missing file "'.$devices_file.'"!';
+				$results = FALSE;
+			}
+		} else {
+			// Linux
+			$data = array();
+			$this->get_config();
+			exec(($this->sudo?'sudo ':'').'hcitool scan | grep ":"', $data);
+			exec(($this->sudo?'sudo ':'').'timeout -s INT 30s hcitool lescan | grep ":"', $data);
+			$total = count($data);
+			for($i=0; $i<$total; $i++) {
+				$data[$i] = trim($data[$i]);
+				if(!$data[$i]) {
+					continue;
+				}
+				$results[] = array(
+					'address'	=> strtolower(substr($data[$i], 0, 17)),
+					'name'		=> trim(substr($data[$i], 17)),
+				);
+			}
+		}
+		return $results;
+	}
+	
+	// Bluetooth: hybrid
+	private function bluetooth_hybrid($address, &$messages=array()) {
+		$results = FALSE;
+		// Ping
+		if(!$results && $this->bluetooth_ping($address, $messages)) {
+			$results = TRUE;
+		}
+		// Discovery
+		if(!$results && $this->bluetooth_discovery($address, $messages)) {
+			$results = TRUE;
+		}
+		// Connect
+		if(!$results && $this->bluetooth_connect($address, $messages)) {
+			$results = TRUE;
+		}
+		return $results;
+	}
+	
+	// Bluetooth: ping
+	private function bluetooth_ping($address, &$messages=array()) {
+		$results = FALSE;
+		if(IsWindowsOS()) {
+			// Windows
+			$messages[] = date('[d/m/Y H:i:s]:').' Method "ping" is not supported for Windows OS!';
+		} else {
+			// Linux
+			$this->get_config();
+			$data = exec(($this->sudo?'sudo ':'').'l2ping '.$address.' -c1 -f | awk \'/loss/ {print $3}\'');
+			if(intval($data) > 0) {
+				$results = TRUE;
+			}
+		}
+		return $results;
+	}
+
+	// Bluetooth: discovery
+	private function bluetooth_discovery($address, &$messages=array()) {
+		$devices = bluetooth_scan($messages);
+		if(is_array($devices)) {
+			foreach($devices as $device) {
+				if($device['address'] == $address) {
+					return TRUE;
+				}
+			}
+		}
+		return FALSE;
+	}
+	
+	// Bluetooth: connect
+	private function bluetooth_connect($address, &$messages=array()) {
+		$results = FALSE;
+		if(IsWindowsOS()) {
+			// Windows
+			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
+				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
+					// BluetoothView version >= 1.41
+					exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
+					if($code == 0) {
+						$results = TRUE;
+					}
+				} else {
+					$messages[] = date('[d/m/Y H:i:s]:').' The current version of BluetoothView is lower than required (1.41)!';
+				}
+			} else {
+				$messages[] = date('[d/m/Y H:i:s]:').' it is impossible to determine the version of BluetoothView!';
+			}
+		} else {
+			// Linux
+			$this->get_config();
+			$data = exec(($this->sudo?'sudo ':'').'hcitool cc '.$address.' 2>&1');
+			if(empty($data)) {
+				$results = TRUE;
+			}
+		}
+		return $results;
+	}
+
 	// saveParams
 	function saveParams($data=0) {
 		$p = array();
@@ -134,6 +325,8 @@ class bluetoothdevices extends module {
 		} else {
 			$out['CYCLERUN'] = 0;
 		}
+		// OS type
+		$out['IS_WINDOWS_OS'] = (int)IsWindowsOS();
 		// Views
 		if($this->data_source == 'bluetoothdevices' || $this->data_source == '') {
 			switch($this->view_mode) {
@@ -167,30 +360,26 @@ class bluetoothdevices extends module {
 	
 	// Settings
 	function settings_bluetoothdevices(&$out) {
-		$this->getConfig();
-		$scanMethod = $this->config['scanMethod'];
-		$scanInterval = $this->config['scanInterval'];
-		$scanTimeout = $this->config['scanTimeout'];
-		$resetInterval = $this->config['resetInterval'];
-		
+		$this->get_config();
 		// Save action
 		if($this->edit_mode == 'save') {
-			global $scanMethod, $scanInterval, $scanTimeout, $resetInterval;
-
-			$this->config['scanMethod'] = strtolower($scanMethod);
-			$this->config['scanInterval'] = intval($scanInterval);
-			$this->config['scanTimeout'] = intval($scanTimeout);
-			$this->config['resetInterval'] = intval($resetInterval);
-			$this->saveConfig();
-			
+			global $sudo, $scanMethod, $scanInterval, $scanTimeout, $resetInterval;
+			$this->sudo = intval($sudo);
+			$this->scanMethod = strtolower($scanMethod);
+			$this->scanInterval = intval($scanInterval);
+			$this->scanTimeout = intval($scanTimeout);
+			$this->resetInterval = intval($resetInterval);
+			$this->save_config();
+			// Redirect
 			$this->redirect('?');
 		}
-
-		$out['SCAN_METHOD'] = $scanMethod;
-		$out['SCAN_INTERVAL'] = $scanInterval;
-		$out['SCAN_TIMEOUT'] = $scanTimeout;
-		$out['RESET_INTERVAL'] = $resetInterval;
-
+		// Current config
+		$out['SUDO'] = $this->sudo;
+		$out['SCAN_METHOD'] = $this->scanMethod;
+		$out['SCAN_INTERVAL'] = $this->scanInterval;
+		$out['SCAN_TIMEOUT'] = $this->scanTimeout;
+		$out['RESET_INTERVAL'] = $this->resetInterval;
+		// Features
 		$out['IS_HYBRID_AVAILABLE']		= (int)!IsWindowsOS();
 		$out['IS_PING_AVAILABLE']		= (int)!IsWindowsOS();
 		$out['IS_SCAN_AVAILABLE']		= (int)TRUE;
@@ -204,46 +393,37 @@ class bluetoothdevices extends module {
 				}
 			}
 		}
-
 	}
 
 	// Add bluetooth device
 	function add_bluetoothdevices(&$out) {
-
 		// Add action
 		if($this->edit_mode == 'add') {
 			global $address, $description, $user;
 			$address = strtolower($address);
-
 			// Validate address
 			if(!preg_match('/^([a-f0-9]{2}:){5}[a-f0-9]{2}$/ims', $address)) {
 				$out['ERROR_TEXT'] = 'Необходимо указать корректный адрес Bluetooth устройства!';
 			}
-
 			// Generate object name
 			$object_name = 'btdev_'.substr(md5($address), 0, 8);
-			
 			// Check the existence of the object
 			if(getObject($this->classname.'.'.$object_name)) {
 				$out['ERROR_TEXT'] = 'Данное устройство уже присутствует в списке!';
 			}
-
 			// Add new object
 			if(empty($out['ERROR_TEXT'])) {
 				if($object_id = addClassObject($this->classname, $object_name)) {
-					
 					// Set description for object
 					$object = SQLSelectOne('SELECT * FROM `objects` WHERE `ID` = '.$object_id);
 					$object['DESCRIPTION'] = $description;
 					SQLUpdate('objects', $object);
-
 					// Set properties
 					if($object = getObject($this->classname.'.'.$object_name)) {
 						$object->setProperty('address', $address);
 						$object->setProperty('online', 0);
 						$object->setProperty('lastTimestamp', 0);
 						$object->setProperty('user', $user);
-
 						// Redirect
 						$this->redirect('?');
 					}
@@ -259,7 +439,6 @@ class bluetoothdevices extends module {
 	
 	// Edit bluetooth device
 	function edit_bluetoothdevices(&$out, $id) {
-
 		// Get object data
 		$object_data = SQLSelectOne('SELECT * FROM `objects` WHERE `ID` = '.$id);
 		if($object = getObject($this->classname.'.'.$object_data['TITLE'])) {
@@ -267,32 +446,26 @@ class bluetoothdevices extends module {
 			$out['DESCRIPTION'] = $object->description;
 			$out['USER'] = $object->getProperty('user');
 		}
-		
 		// Edit action
 		if($this->edit_mode == 'edit') {
 			global $address, $description, $user;
 			$address = strtolower($address);
-
 			// Check object
 			if(!$object->id) {
 				$out['ERROR_TEXT'] = 'Невозможно получить информацию о выбранном устройстве!';
 			}
-			
 			// Validate address
 			if(!preg_match('/^([a-f0-9]{2}:){5}[a-f0-9]{2}$/ims', $address)) {
 				$out['ERROR_TEXT'] = 'Необходимо указать корректный адрес Bluetooth устройства!';
 			}
-
 			// Save
 			if(empty($out['ERROR_TEXT'])) {
 				// Set description for object
 				$object_data['DESCRIPTION'] = $description;
 				SQLUpdate('objects', $object_data);
-
 				// Set properties
 				$object->setProperty('address', $address);
 				$object->setProperty('user', $user);
-
 				// Redirect
 				$this->redirect('?');
 			} else {
@@ -319,12 +492,10 @@ class bluetoothdevices extends module {
 		if($objects = getObjectsByClass($this->classname)) {
 			foreach($objects as $obj) {
 				$obj = getObject($this->classname.'.'.$obj['TITLE']);
-
 				// Get username
 				$user = SQLSelectOne('SELECT `USERNAME`, `NAME` FROM `users` WHERE `ID` = '.intval($obj->getProperty('user')));
 				// Get lastTimestamp
 				$lastTimestamp = intval($obj->getProperty('lastTimestamp'));
-				
 				$out['DEVICES'][] = array(
 					'ID'			=> $obj->id,
 					'OBJECT'		=> $obj->object_title,
@@ -346,135 +517,39 @@ class bluetoothdevices extends module {
 	
 	// Cycle
 	function processCycle() {
-		$this->getConfig();
 		if($objects = getObjectsByClass($this->classname)) {
+			$this->get_config();
 			// All objects from $this->classname class
 			foreach($objects as $obj) {
+				$messages = array();
 				// Current object
 				$obj = getObject($this->classname.'.'.$obj['TITLE']);
 				$address = strtolower($obj->getProperty('address'));
+				// Reset bluetooth
+				if((intval($this->resetInterval) >= 0) && (time()-intval(getGlobal('bluetoothdevices_resetTime') > intval($this->resetInterval)))) {
+					$this->bluetooth_reset($messages);
+				}
 				// Search device
-				$is_found = false;
-				$scanMethod = strtolower($this->config['scanMethod']);
-				if(IsWindowsOS()) {
-					// Windows
-					switch($scanMethod) {
-						case 'hybrid': // Hybrid method
-							die(date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL);
-						case 'ping': // Ping
-							// FIXME: BluetoothView (v1.66) does not support ping
-							if($scanMethod != 'hybrid') {
-								die(date('Y/m/d H:i:s').' Method is not supported for Windows OS: '.$this->config['scanMethod'].PHP_EOL);
-								break;
-							}
-						case 'discovery': // Discovery
-							// FIXME: does not find BLE devices
-							// FIXME: finds an offline device if it is paired
-							if(!$is_found) {
-								$devices_file = SERVER_ROOT.'/apps/bluetoothview/devices.txt';
-								unlink($devices_file);
-								exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /stab '.$devices_file);
-								if(file_exists($devices_file)) {
-									if($data = LoadFile($devices_file)) {
-										$data = str_replace(chr(0), '', $data);
-										$data = str_replace("\r", '', $data);
-										$lines = explode("\n", $data);
-										$total = count($lines);
-										for($i=0; $i<$total; $i++) {
-											$fields = explode("\t", $lines[$i]);
-											if(strtolower(trim($fields[2])) == $address) {
-												$is_found = true;
-												break;
-											}
-										}
-									}
-								}
-							}
-							if($scanMethod != 'hybrid') {
-								break;
-							}
-						case 'connect': // Connect (version >= 1.41)
-							if(!$is_found) {
-								$method_is_supported = FALSE;
-								if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
-									if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
-										$method_is_supported = TRUE;
-									}
-								}
-								if($method_is_supported) {
-									exec(SERVER_ROOT.'/apps/bluetoothview/bluetoothview.exe /try_to_connect '.$address, $data, $code);
-									if($code == 0) {
-										$is_found = true;
-									}
-								} else {
-									if($scanMethod != 'hybrid') {
-										die(date('Y/m/d H:i:s').' The current version of BluetoothView is lower than required (1.41)!');
-									}
-								}
-							}
-							if($scanMethod != 'hybrid') {
-								break;
-							}
-						default: // Unknown
-							if($scanMethod != 'hybrid') {
-								die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
-							}
-					}
-				} else {
-					// Linux
-					if((intval($this->config['resetInterval']) >= 0) && (time()-intval(getGlobal('bluetoothdevices_resetTime') > intval($this->config['resetInterval'])))) {
-						// Reset bluetooth
-						echo date('Y/m/d H:i:s').' Reset bluetooth'.PHP_EOL;
-						exec('sudo hciconfig hci0 down; sudo hciconfig hci0 up');
-						setGlobal('bluetoothdevices_resetTime', time());
-					}
-					switch($scanMethod) {
-						case 'hybrid': // Hybrid method
-						case 'ping': // Ping
-							if(!$is_found) {
-								$data = exec(str_replace('%ADDRESS%', $address, 'sudo l2ping %ADDRESS% -c1 -f | awk \'/loss/ {print $3}\''));
-								if(intval($data) > 0) {
-									$is_found = true;
-								}
-							}
-							if($scanMethod != 'hybrid') {
-								break;
-							}
-						case 'discovery': // Discovery
-							if(!$is_found) {
-								$data = array();
-								exec('sudo hcitool scan | grep ":"', $data);
-								exec('sudo timeout -s INT 30s hcitool lescan | grep ":"', $data);
-								$total = count($data);
-								for($i=0; $i<$total; $i++) {
-									$data[$i] = trim($data[$i]);
-									if(!$data[$i]) {
-										continue;
-									}
-									if(strtolower(substr($data[$i], 0, 17)) == $address) {
-										$is_found = true;
-										break;
-									}
-								}
-							}
-							if($scanMethod != 'hybrid') {
-								break;
-							}
-						case 'connect': // Connect
-							if(!$is_found) {
-								$data = exec('sudo hcitool cc '.$address.' 2>&1');
-								if(empty($data)) {
-									$is_found = true;
-								}
-							}
-							if($scanMethod != 'hybrid') {
-								break;
-							}
-						default: // Unknown
-							if($scanMethod != 'hybrid') {
-								die(date('Y/m/d H:i:s').' Unknown method: '.$this->config['scanMethod'].PHP_EOL);
-							}
-					}
+				$is_found = FALSE;
+				switch(strtolower($this->scanMethod)) {
+					case 'hybrid': // Hybrid method
+						$is_found = $this->bluetooth_hybrid($address, $messages);
+						break;
+					case 'ping': // Ping
+						$is_found = $this->bluetooth_hybrid($address, $messages);
+						break;
+					case 'discovery': // Discovery
+						$is_found = $this->bluetooth_hybrid($address, $messages);
+						break;
+					case 'connect': // Connect
+						$is_found = $this->bluetooth_hybrid($address, $messages);
+						break;
+					default:
+						$messages[] = date('[d/m/Y H:i:s]:').' Unknown method "'.$this->scanMethod.'"!';
+				}
+				// Print messages
+				foreach($messages as $message) {
+					echo $message.PHP_EOL;
 				}
 				// Update object
 				if($is_found) {
@@ -487,7 +562,7 @@ class bluetoothdevices extends module {
 				} else {
 					$lastTimestamp = intval($obj->getProperty('lastTimestamp'));
 					if($obj->getProperty('online') == 1) {
-						if(time()-$lastTimestamp > intval($this->config['scanTimeout'])) {
+						if(time()-$lastTimestamp > intval($this->scanTimeout)) {
 							echo date('Y/m/d H:i:s').' Device lost: '.$address.PHP_EOL;
 							$obj->setProperty('online', 0);
 							$obj->callMethod('Lost', array('ADDRESS'=>$address));
@@ -519,7 +594,6 @@ class bluetoothdevices extends module {
 	function dbInstall($data) {
 		// Class
 		addClass($this->classname);
-
 		// Method: Found
 		$meth_id = addClassMethod($this->classname, 'Found', '');
 		if($meth_id) {
@@ -527,7 +601,6 @@ class bluetoothdevices extends module {
 			$property['DESCRIPTION'] = 'Устройство появилось в зоне доступа';
 			SQLUpdate('methods', $property);
 		}
-		
 		// Method: Lost
 		$meth_id = addClassMethod($this->classname, 'Lost', '');
 		if($meth_id) {
@@ -535,7 +608,6 @@ class bluetoothdevices extends module {
 			$property['DESCRIPTION'] = 'Устройство пропало из зоны доступа';
 			SQLUpdate('methods', $property);
 		}
-
 		// Property: Online
 		$prop_id = addClassProperty($this->classname, 'online', 0);
 		if($prop_id) {
@@ -543,7 +615,6 @@ class bluetoothdevices extends module {
 			$property['DESCRIPTION'] = 'Состояние доступности';
 			SQLUpdate('properties', $property);
 		}
-		
 		// Property: Address
 		$prop_id = addClassProperty($this->classname, 'address', 0);
 		if($prop_id) {
@@ -551,7 +622,6 @@ class bluetoothdevices extends module {
 			$property['DESCRIPTION'] = 'Адрес устройства';
 			SQLUpdate('properties', $property);
 		}
-	
 		// Property: lastTimestamp
 		$prop_id = addClassProperty($this->classname, 'lastTimestamp', 0);
 		if($prop_id) {
@@ -559,7 +629,6 @@ class bluetoothdevices extends module {
 			$property['DESCRIPTION'] = 'Время последнего онлайна';
 			SQLUpdate('properties', $property);
 		}
-		
 		// Property: User
 		$prop_id = addClassProperty($this->classname, 'user', 0);
 		if($prop_id) {
@@ -567,33 +636,15 @@ class bluetoothdevices extends module {
 			$property['DESCRIPTION'] = 'Пользователь устройства';
 			SQLUpdate('properties', $property);
 		}
-		
-		// Config
-		$this->getConfig();
-		if(IsWindowsOS()) {
-			// Windows
-			$this->config['scanMethod'] = 'discovery';
-			if($bluetoothview_version = $this->get_product_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe')) {
-				if(!$this->compare_programs_versions($bluetoothview_version, '1.41')) {
-					$this->config['scanMethod'] = 'connect';
-				}
-			}
-		} else {
-			// Linux
-			$this->config['scanMethod'] = 'hybrid';
-		}
-		$this->config['scanInterval'] = 60; // 1 min
-		$this->config['scanTimeout'] = 5*60; // 5 min
-		$this->config['resetInterval'] = 2*60*60; // 2 hrs
-		$this->saveConfig();
-		
+		// Save default config
+		$this->save_config();
 		// Global property
 		setGlobal('cycle_bluetoothdevicesDisabled', 0);
 		setGlobal('cycle_bluetoothdevicesAutoRestart', 1);
 		setGlobal('cycle_bluetoothdevicesRun', 0);
 		setGlobal('cycle_bluetoothdevicesControl', 'start');
 		setGlobal('bluetoothdevices_resetTime', 0);
-
+		// Parent dbInstall
 		parent::dbInstall($data);
 	}
 
