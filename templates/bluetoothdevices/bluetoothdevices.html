@@ -15,7 +15,7 @@
 	<br>
 	[#if IS_WINDOWS_OS==1#]
 		[#if BV_UNSUPPORTED_VERSION==1#]
-			<div class="alert alert-warning"><strong>Внимание!</strong> Для полноценной работы модуля необходим BluetoothView версии не ниже 1.41. Скачать вы его можете с <a href="http://www.nirsoft.net/utils/bluetoothview.zip" target="_blank">официального сайта</a>.</div>
+			<div class="alert alert-warning"><strong>Внимание!</strong> Для полноценной работы модуля необходим BluetoothView версии не ниже 1.41. Скачать вы его можете с <a href="http://www.nirsoft.net/utils/bluetoothview.zip" target="_blank">официального сайта</a>. Каталог для установки: "<i>[#SERVER_ROOT#]/apps/bluetoothview/</i>".</div>
 		[#endif#]
 	[#endif#]
 	[#if DEVICES#]
@@ -188,19 +188,19 @@
 				<div class="col-lg-8">
 					[#if IS_HYBRID_AVAILABLE==1#]
 					<label class="radio"><input type="radio" name="scanMethod" value="hybrid" [#if SCAN_METHOD="hybrid"#] checked[#endif#]>Гибридный</label>
-					<p class="help-block">Совмещает в себе все нижеперечисленные методы. <strong>Рекомендуется к использованию на Linux</strong> (на Windows же наоборот - вызывает ложные срабатывания, потому недоступен).</p>
+					<p class="help-block">Совмещает в себе все нижеперечисленные методы. <strong>Рекомендуется к использованию на Linux.</strong></p>
 					[#endif#]
 					[#if IS_PING_AVAILABLE==1#]
 					<label class="radio"><input type="radio" name="scanMethod" value="ping" [#if SCAN_METHOD="ping"#] checked[#endif#]>PING запросы</label>
-					<p class="help-block">Метод поиска посредством отправки PING запросов. Позволяет отслеживать устройства с отключенным режимом обнаружения. На данный момент доступно только для Linux.</p>
+					<p class="help-block">Метод поиска посредством отправки PING запросов. Позволяет отслеживать устройства с отключенным режимом обнаружения.</p>
 					[#endif#]
 					[#if IS_SCAN_AVAILABLE==1#]
 					<label class="radio"><input type="radio" name="scanMethod" value="discovery" [#if SCAN_METHOD="discovery"#] checked[#endif#]>Сканирование радиоэфира</label>
-					<p class="help-block">Поиск необходимого устройства среди списка всех доступных. На Linux позволяет так же отслеживать и BLE (Bluetooth Low Energy) девайсы.</p>
+					<p class="help-block">Поиск необходимого устройства среди списка всех доступных. На Linux позволяет так же отслеживать и BLE (Bluetooth Low Energy) девайсы. На Windows системах сопряженные устройства всегда будут онлайн, даже если это не так.</p>
 					[#endif#]
 					[#if IS_CONNECT_AVAILABLE==1#]
 					<label class="radio"><input type="radio" name="scanMethod" value="connect" [#if SCAN_METHOD="connect"#] checked[#endif#]>Прямое подключение</label>
-					<p class="help-block">Определение доступности устройства на основе результатов попытки прямого подключения к нему. <strong>Рекомендуется к использованию на Windows</strong> (необходим BluetoothView версии не ниже 1.44 и предварительное сопряжение с конечными устройствами).</p>
+					<p class="help-block">Определение доступности устройства на основе результатов попытки прямого подключения к нему. <strong>Рекомендуется к использованию на Windows</strong>. Для корректной работы необходимо выполнить предварительное сопряжение.</p>
 					[#endif#]
 				</div>
 			</div>

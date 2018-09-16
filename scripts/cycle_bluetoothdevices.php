@@ -21,7 +21,6 @@ $ctl = new control_modules();
 
 include_once(DIR_MODULES.'bluetoothdevices/bluetoothdevices.class.php');
 $bluetoothdevices_module = new bluetoothdevices();
-$bluetoothdevices_module->getConfig();
 
 echo date('Y/m/d H:i:s').' Running bluetooth scanner'.PHP_EOL;
 
@@ -29,6 +28,7 @@ $scan_time = 0;
 
 while(true) {
     
+	$bluetoothdevices_module->getConfig();
 	setGlobal((str_replace('.php', '', basename(__FILE__))).'Run', time(), 1);
 	
 	if(time()-$scan_time > intval($bluetoothdevices_module->config['scanInterval'])) {
