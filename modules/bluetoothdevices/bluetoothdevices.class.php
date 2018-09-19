@@ -573,23 +573,6 @@ class bluetoothdevices extends module {
 
 	// Install
 	function install($parent_name='') {
-		parent::install($parent_name);
-	}
-
-	// Uninstall
-	function uninstall() {
-		setGlobal('cycle_bluetoothdevicesControl', 'stop');
-		SQLExec("DELETE FROM `pvalues` WHERE `PROPERTY_ID` IN (SELECT `ID` FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')))");
-		SQLExec("DELETE FROM `history` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
-		SQLExec("DELETE FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
-		SQLExec("DELETE FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')");
-		SQLExec("DELETE FROM `methods` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')");	 
-		SQLExec("DELETE FROM `classes` WHERE `TITLE` = '".$this->classname."'");
-		parent::uninstall();
-	}
-
-	// dbInstall
-	function dbInstall($data) {
 		// Class
 		addClass($this->classname);
 		// Method: Found
@@ -636,28 +619,47 @@ class bluetoothdevices extends module {
 		}
 		// Save default config
 		$this->getConfig();
-		$this->config['sudo']			= (int)TRUE;
-		if(IsWindowsOS()) {
-			// Windows
-			$this->config['scanMethod'] = 'discovery';
-			if($this->check_programs_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe', '1.41')) {
-				$this->config['scanMethod'] = 'connect';
+		if(!$this->config) {
+			$this->config['sudo'] = (int)TRUE;
+			if(IsWindowsOS()) {
+				// Windows
+				$this->config['scanMethod'] = 'discovery';
+				if($this->check_programs_version(SERVER_ROOT.'/apps/bluetoothview/BluetoothView.exe', '1.41')) {
+					$this->config['scanMethod'] = 'connect';
+				}
+			} else {
+				// Linux
+				$this->config['scanMethod'] = 'hybrid';
 			}
-		} else {
-			// Linux
-			$this->config['scanMethod'] = 'hybrid';
+			$this->config['scanInterval'] = (int)60;
+			$this->config['scanTimeout'] = (int)5*60;
+			$this->config['resetInterval'] = (int)2*60*60;
+			$this->saveConfig();
 		}
-		$this->config['scanInterval']	= (int)60;
-		$this->config['scanTimeout']	= (int)5*60;
-		$this->config['resetInterval']	= (int)2*60*60;
-		$this->saveConfig();
 		// Global property
 		setGlobal('cycle_bluetoothdevicesDisabled', 0);
 		setGlobal('cycle_bluetoothdevicesAutoRestart', 1);
 		setGlobal('cycle_bluetoothdevicesRun', 0);
 		setGlobal('cycle_bluetoothdevicesControl', 'start');
 		setGlobal('bluetoothdevices_resetTime', 0);
-		// Parent dbInstall
+		// Parent install
+		parent::install($parent_name);
+	}
+
+	// Uninstall
+	function uninstall() {
+		setGlobal('cycle_bluetoothdevicesControl', 'stop');
+		SQLExec("DELETE FROM `pvalues` WHERE `PROPERTY_ID` IN (SELECT `ID` FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')))");
+		SQLExec("DELETE FROM `history` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
+		SQLExec("DELETE FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
+		SQLExec("DELETE FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')");
+		SQLExec("DELETE FROM `methods` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')");	 
+		SQLExec("DELETE FROM `classes` WHERE `TITLE` = '".$this->classname."'");
+		parent::uninstall();
+	}
+
+	// dbInstall
+	function dbInstall($data) {
 		parent::dbInstall($data);
 	}
 
