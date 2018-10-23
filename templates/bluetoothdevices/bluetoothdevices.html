@@ -233,7 +233,16 @@
 				<div class="col-lg-8">
 					<input name="sudo" value="1" type="radio"[#if SUDO==1#] checked[#endif#]>Вкл
 					<input name="sudo" value="0" type="radio"[#if SUDO==0#] checked[#endif#]>Выкл
-					<p class="help-block">Использовать запрос на выполнение команд от имени суперпользователя (sudo) во время процедуры поиска устройств (только для Linux).<br />Рекомендуемое значение: Вкл</p>
+					<p class="help-block">
+						[#if SUDO==1 AND SUDO_TEST==0#]
+							<span style="color: red;">
+								<strong>Внимание! У пользователя www-data нет доступа к выполнению команд через sudo.</strong><br />
+								В терминале Linux введите "<i>sudo visudo</i>" и в открывшийся файл добавьте строчку "<i>www-data ALL=(ALL) NOPASSWD:ALL</i>" (без кавычек), после чего нажмите <i>Ctrl+O</i> и <i>Enter</i> для сохранения изменений. Выход из visudo осуществляется с помощью сочетания клавиш <i>Ctrl+X</i>.
+							</span>
+							<br />
+						[#endif#]
+						Использовать запрос на выполнение команд от имени суперпользователя (sudo) во время процедуры поиска устройств (только для Linux).<br />Рекомендуемое значение: Вкл
+					</p>
 				</div>
 			</div>
 			[#endif#]

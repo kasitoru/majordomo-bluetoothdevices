@@ -341,7 +341,18 @@ class bluetoothdevices extends module {
 			$this->redirect('?');
 		}
 		// Current config
-		$out['SUDO'] = $this->config['sudo'];
+		if($out['SUDO'] = $this->config['sudo']) {
+			if(exec('sudo echo test') == 'test') {
+				$out['SUDO_TEST'] = 1;
+			} else {
+				$out['SUDO_TEST'] = 0;
+			}
+		} else {
+			// FIXME:
+			// hciconfig
+			// l2ping
+			// hcitool
+		}
 		$out['SCAN_METHOD'] = $this->config['scanMethod'];
 		$out['SCAN_INTERVAL'] = $this->config['scanInterval'];
 		$out['SCAN_TIMEOUT'] = $this->config['scanTimeout'];
