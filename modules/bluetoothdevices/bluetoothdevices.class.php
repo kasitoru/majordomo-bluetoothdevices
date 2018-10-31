@@ -587,43 +587,37 @@ class bluetoothdevices extends module {
 		// Class
 		addClass($this->classname);
 		// Method: Found
-		$meth_id = addClassMethod($this->classname, 'Found', '');
-		if($meth_id) {
+		if($meth_id = addClassMethod($this->classname, 'Found', '')) {
 			$property = SQLSelectOne('SELECT * FROM `methods` WHERE `ID` = '.$meth_id);
 			$property['DESCRIPTION'] = 'Устройство появилось в зоне доступа';
 			SQLUpdate('methods', $property);
 		}
 		// Method: Lost
-		$meth_id = addClassMethod($this->classname, 'Lost', '');
-		if($meth_id) {
+		if($meth_id = addClassMethod($this->classname, 'Lost', '')) {
 			$property = SQLSelectOne('SELECT * FROM `methods` WHERE `ID` = '.$meth_id);
 			$property['DESCRIPTION'] = 'Устройство пропало из зоны доступа';
 			SQLUpdate('methods', $property);
 		}
 		// Property: Online
-		$prop_id = addClassProperty($this->classname, 'online', 0);
-		if($prop_id) {
+		if($prop_id = addClassProperty($this->classname, 'online', 0)) {
 			$property = SQLSelectOne('SELECT * FROM `properties` WHERE `ID` = '.$prop_id);
 			$property['DESCRIPTION'] = 'Состояние доступности';
 			SQLUpdate('properties', $property);
 		}
 		// Property: Address
-		$prop_id = addClassProperty($this->classname, 'address', 0);
-		if($prop_id) {
+		if($prop_id = addClassProperty($this->classname, 'address', 0)) {
 			$property = SQLSelectOne('SELECT * FROM `properties` WHERE `ID` = '.$prop_id);
 			$property['DESCRIPTION'] = 'Адрес устройства';
 			SQLUpdate('properties', $property);
 		}
 		// Property: lastTimestamp
-		$prop_id = addClassProperty($this->classname, 'lastTimestamp', 0);
-		if($prop_id) {
+		if($prop_id = addClassProperty($this->classname, 'lastTimestamp', 0)) {
 			$property = SQLSelectOne('SELECT * FROM `properties` WHERE `ID` = '.$prop_id);
 			$property['DESCRIPTION'] = 'Время последнего онлайна';
 			SQLUpdate('properties', $property);
 		}
 		// Property: User
-		$prop_id = addClassProperty($this->classname, 'user', 0);
-		if($prop_id) {
+		if($prop_id = addClassProperty($this->classname, 'user', 0)) {
 			$property = SQLSelectOne('SELECT * FROM `properties` WHERE `ID` = '.$prop_id);
 			$property['DESCRIPTION'] = 'Пользователь устройства';
 			SQLUpdate('properties', $property);
@@ -659,13 +653,81 @@ class bluetoothdevices extends module {
 
 	// Uninstall
 	function uninstall() {
+		// Stop cycle
 		setGlobal('cycle_bluetoothdevicesControl', 'stop');
-		SQLExec("DELETE FROM `pvalues` WHERE `PROPERTY_ID` IN (SELECT `ID` FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')))");
-		SQLExec("DELETE FROM `history` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
-		SQLExec("DELETE FROM `properties` WHERE `OBJECT_ID` IN (SELECT `ID` FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'))");
-		SQLExec("DELETE FROM `objects` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')");
-		SQLExec("DELETE FROM `methods` WHERE `CLASS_ID` = (SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."')");	 
-		SQLExec("DELETE FROM `classes` WHERE `TITLE` = '".$this->classname."'");
+		// Table: classes
+		$classes = array();
+		if($query = SQLSelect("SELECT `ID` FROM `classes` WHERE `TITLE` = '".$this->classname."'")) {
+			foreach($query as $item) {
+				$classes[] = (int)$item['ID'];
+			}
+			$classes = array_filter($classes);
+			// Delete classes
+			if(!empty($classes)) {
+				SQLExec('DELETE FROM `classes` WHERE `ID` IN ('.implode(', ', $classes).')');
+			}
+		}
+		// Table: objects
+		$objects = array();
+		if($query = SQLSelect("SELECT `ID` FROM `objects` WHERE ".(!empty($classes)?'`CLASS_ID` IN ('.implode(', ', $classes).') OR ':'')."`TITLE` LIKE 'btdev_%'")) {
+			foreach($query as $item) {
+				$objects[] = (int)$item['ID'];
+			}
+			$objects = array_filter($objects);
+			// Delete objects
+			if(!empty($objects)) {
+				SQLExec('DELETE FROM `objects` WHERE `ID` IN ('.implode(', ', $objects).')');
+			}
+		}
+		// Table: methods
+		$methods = array();
+		if($query = SQLSelect("SELECT `ID` FROM `methods` WHERE ".(!empty($objects)?'`OBJECT_ID` IN ('.implode(', ', $objects).') OR ':'')." ".(!empty($classes)?'`CLASS_ID` IN ('.implode(', ', $classes).') OR ':'')."0")) {
+			foreach($query as $item) {
+				$methods[] = (int)$item['ID'];
+			}
+			$methods = array_filter($methods);
+			// Delete methods
+			if(!empty($methods)) {
+				SQLExec('DELETE FROM `methods` WHERE `ID` IN ('.implode(', ', $methods).')');
+			}
+		}
+		// Table: properties
+		$properties = array();
+		if($query = SQLSelect("SELECT `ID` FROM `properties` WHERE ".(!empty($classes)?'`CLASS_ID` IN ('.implode(', ', $classes).') OR ':'')." ".(!empty($objects)?'`OBJECT_ID` IN ('.implode(', ', $objects).') OR ':'')."0")) {
+			foreach($query as $item) {
+				$properties[] = (int)$item['ID'];
+			}
+			$properties = array_filter($properties);
+			// Delete properties
+			if(!empty($properties)) {
+				SQLExec('DELETE FROM `properties` WHERE `ID` IN ('.implode(', ', $properties).')');
+			}
+		}
+		// Table: pvalues
+		$pvalues = array();
+		if($query = SQLSelect("SELECT `ID` FROM `pvalues` WHERE ".(!empty($properties)?'`PROPERTY_ID` IN ('.implode(', ', $properties).') OR ':'')." ".(!empty($objects)?'`OBJECT_ID` IN ('.implode(', ', $objects).') OR ':'')."`PROPERTY_NAME` LIKE 'btdev_%'")) {
+			foreach($query as $item) {
+				$pvalues[] = (int)$item['ID'];
+			}
+			$pvalues = array_filter($pvalues);
+			// Delete pvalues
+			if(!empty($pvalues)) {
+				SQLExec('DELETE FROM `pvalues` WHERE `ID` IN ('.implode(', ', $pvalues).')');
+			}
+		}
+		// Table: history
+		$history = array();
+		if($query = SQLSelect("SELECT `ID` FROM `history` WHERE ".(!empty($objects)?'`OBJECT_ID` IN ('.implode(', ', $objects).') OR ':'')." ".(!empty($methods)?'`METHOD_ID` IN ('.implode(', ', $methods).') OR ':'')." ".(!empty($pvalues)?'`VALUE_ID` IN ('.implode(', ', $pvalues).') OR ':'')."0")) {
+			foreach($query as $item) {
+				$history[] = (int)$item['ID'];
+			}
+			$history = array_filter($history);
+			// Delete history
+			if(!empty($history)) {
+				SQLExec('DELETE FROM `history` WHERE `ID` IN ('.implode(', ', $history).')');
+			}
+		}
+		// Parent uninstall
 		parent::uninstall();
 	}
 
