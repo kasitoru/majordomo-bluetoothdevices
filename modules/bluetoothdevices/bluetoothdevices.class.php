@@ -129,7 +129,7 @@ class bluetoothdevices extends module {
 			// Linux
 			$data = array();
 			exec(($this->config['sudo']?'sudo ':'').'hcitool scan | grep ":"', $data);
-			exec(($this->config['sudo']?'sudo ':'').'timeout -s INT 30s hcitool lescan | grep ":"', $data);
+			exec(($this->config['sudo']?'sudo ':'').'timeout -s INT 10s hcitool lescan | grep ":"', $data);
 			$total = count($data);
 			for($i=0; $i<$total; $i++) {
 				$data[$i] = trim($data[$i]);
