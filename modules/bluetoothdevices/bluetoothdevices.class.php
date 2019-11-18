@@ -534,10 +534,7 @@ class bluetoothdevices extends module {
 				// Current object
 				$obj = getObject($this->classname.'.'.$obj['TITLE']);
 				$address = strtolower($obj->getProperty('address'));
-				// Reset bluetooth
-				if((intval($this->config['resetInterval']) >= 0) && (time()-intval(getGlobal('bluetoothdevices_resetTime') > intval($this->config['resetInterval'])))) {
-					$this->bluetooth_reset($messages);
-				}
+
 				// Search device
 				$is_found = FALSE;
 				switch(strtolower($this->config['scanMethod'])) {
@@ -579,6 +576,12 @@ class bluetoothdevices extends module {
 					}
 				}
 			}
+
+			// Reset bluetooth
+			if((intval($this->config['resetInterval']) >= 0) && (time()-intval(getGlobal('bluetoothdevices_resetTime')) > intval($this->config['resetInterval']))) {
+				$this->bluetooth_reset($messages);
+			}
+
 		}
 	}
 
