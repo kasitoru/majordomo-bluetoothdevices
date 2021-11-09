@@ -2,7 +2,7 @@
 /*
 	Bluetooth Devices module for MajorDoMo
 	Author: Sergey Avdeev <avdeevsv91@gmail.com>
-	URL: https://github.com/avdeevsv91/majordomo-bluetoothdevices
+	URL: https://github.com/kasitoru/majordomo-bluetoothdevices
 */
 
 chdir(dirname(__FILE__).'/../');
